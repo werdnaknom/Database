@@ -22,7 +22,8 @@ class Config(object):
     basedir = os.path.abspath(os.path.dirname(__file__))
 
 class DeploymentConfig(Config):
-    pass
+    OR_DIRECTORY_HEAD = os.environ.get("OR_ATS_DIRECTORY") or r'F:\ATS DATABASE'
+    KM_DIRECTORY_HEAD = os.environ.get("KM_ATS_DIRECTORY") or r'F:\ATS DATABASE'
 
 
 class DevelopmentConfig(Config):
@@ -33,3 +34,5 @@ class DevelopmentConfig(Config):
     MONGO_URI = "mongodb://localhost:27017"  # Must setup in standalone docker
     redis_port = 6379
     REDIS_URL = 'redis://localhost'
+    OR_DIRECTORY_HEAD = r'F:\ATS DATABASE'
+    KM_DIRECTORY_HEAD = r'F:\ATS DATABASE'
