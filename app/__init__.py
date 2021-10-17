@@ -1,8 +1,6 @@
 from flask import Flask
 from config import Config
-import requests
 from flask_wtf import CSRFProtect
-from celery import Celery
 
 from flask_bootstrap import Bootstrap
 
@@ -13,8 +11,8 @@ def create_app(config_class=Config):
     CSRFProtect(app)
     app.config.from_object(config_class)
 
-    from app.main import bp as main_bp
-    app.register_blueprint(main_bp)
+    from app.api_upload import bp as upload_bp
+    app.register_blueprint(upload_bp, url_prefix="/api_upload")
 
     return app
 
