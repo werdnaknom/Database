@@ -1,3 +1,4 @@
 [submodule "Entities"]
 	path = Entities
 	url = https://github.com/werdnaknom/Entities
+	branch = main

@@ -9,6 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir gunicorn
 
 COPY app app
+COPY Entities Entities
 COPY flaskweb.py boot.sh config.py ./
 RUN chmod +x boot.sh
 
