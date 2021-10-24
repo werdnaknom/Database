@@ -1,12 +1,8 @@
-import tkinter
-from pathlib import Path
 from unittest import mock
 
 from Entities.basicTestCase.basic_test_case import BasicTestCase
 
-from app.DirectoryReader.read_runid_files import *
-
-import numpy as np
+from DirectoryReader.read_runid_files import *
 
 
 class TestFileEntityCreationFromDirectory(BasicTestCase):
