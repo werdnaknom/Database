@@ -1,6 +1,13 @@
 import typing as t
 from pathlib import Path
 import os
+import time
+from multiprocessing import Pool, cpu_count, Process, Queue
+import logging
+from PIL import Image
+import io
+
+import matplotlib.pyplot as plt
 from dotenv import load_dotenv
 import time
 from dataclasses import dataclass
@@ -12,6 +19,7 @@ from read_capture_files import create_capture_settings_entity, create_capture_en
     create_capture_linkpartner_entity, create_capture_dut_entity
 from Entities.Entities import *
 from Entities.Helpers.path_translator import PathTranslator
+from Entities.WaveformFunctions.waveform_analysis import WaveformAnalysis
 
 START_LENGTH = 1
 PROJECT = START_LENGTH + 1
@@ -28,11 +36,18 @@ LEGACY_SCRIPT = START_LENGTH + 8
 SYSTEM_SCRIPT = START_LENGTH + 9
 
 
+class Lumberjack(logging.getLoggerClass()):
+    # TODO: LOGGING
+    pass
+
+
 class Repo():
     def __init__(self):
         mongo_uri = os.environ.get("MONGO_URI")
+        print(mongo_uri)
         self.client = pymongo.MongoClient(mongo_uri)
         self.db = self.client['ATS2']
+        print(self.db)
 
     def _insert_entity(self, entity):
         # TODO:: Update to find the actual _id instead of just count found.
@@ -43,8 +58,9 @@ class Repo():
         # if found:
         #   return found
         if not found:
-            print("NOT FOUND, INSERTING", entity.to_dict())
+            # print("NOT FOUND, INSERTING", entity.to_dict())
             r = col.insert_one(document=entity.to_dict())
+            print("INSERTED {} at {}".format(entity.descriptor, r.inserted_id))
             # return r.inserted_ids
 
     def insert_project(self, project: ProjectEntity):
@@ -67,6 +83,57 @@ class Repo():
 
     def insert_capture(self, capture):
         return self._insert_entity(entity=capture)
+
+    def insert_waveform(self, waveform):
+        ds_x = waveform.downsample[0].tolist()
+        ds_y = waveform.downsample[1].tolist()
+        waveform.downsample = [ds_x, ds_y]
+        return self._insert_entity(entity=waveform)
+
+    def _insert_image_from_path(self, path: str):
+        im = Image.open(path)
+        image_bytes = io.BytesIO()
+        im.save(image_bytes, format('PNG'))
+
+        image_entity = {
+            'data': image_bytes.getvalue()
+        }
+        image_id = self._insert_entity(image_entity)
+        return image_id
+
+    def _read_image_from_db(self, id):
+        image = self.db['images'].find_one({})
+        pil_img = Image.open(io.BytesIO(image['data']))
+        plt.imshow(pil_img)
+        plt.show()
+
+    def insert_waveform_image(self, wfm_image):
+
+        pass
+
+    def insert_runid_image(self, runid_image):
+        pass
+
+    def insert_rework_image(self, rwk_image):
+        pass
+
+    def insert_serial_image(self, serial_image):
+        pass
+
+    def insert_pba_image(self, pba_image):
+        pass
+
+    def insert_project_image(self, project_image):
+        pass
+
+    def check_waveform(self, runid, capture, testpoint, scope_channel, test_category):
+        id = WaveformEntity.format_id(testpoint=testpoint, runid=runid, capture=capture, scope_channel=scope_channel,
+                                      test_category=test_category)
+        result = self.db[WaveformEntity.get_type()].count_documents({"_id": id})
+        if result > 0:
+            return True
+        else:
+            return False
 
 
 class AddFromDirectory():
@@ -114,6 +181,10 @@ class AddFromDirectory():
         dir = self._get_dir_from_parents(parents, current=current, destination=RUNID)
         return AddRunidFromDirectory.get_name_from_directory(dir=dir)
 
+    def get_testcategory_from_parents(self, parents: t.List[Path], current: int):
+        dir = self._get_dir_from_parents(parents, current=current, destination=TEST)
+        return AddAutomationTestFromDirectory.get_name_from_directory(dir=dir)
+
 
 class AddProjectFromDirectory(AddFromDirectory):
     def add(self):
@@ -126,6 +197,7 @@ class AddPBAfromDirectory(AddFromDirectory):
         project = self.dir.parent.name
         pba_entity = PBAEntity(part_number=self.get_name(), project=project)
         self.repo.insert_pba(pba_entity)
+
 
 class AddReworkfromDirectory(AddFromDirectory):
     @classmethod
@@ -223,6 +295,47 @@ class AddRunidFromDirectory(AddFromDirectory):
             print(project, pba, rework, serial, self.get_name(), "Failed with error:", e, "The file location is: ",
                   self.dir)
 
+    def plot_runid_aux2main(self) -> plt.Figure:
+        runid = self.get_name()
+        # waveforms = self.repo.db[WaveformEntity.get_type()].find({"runid": self.get_name()}).count_documents()
+        wfm_count = self.repo.db[WaveformEntity.get_type()].count_documents({"runid": self.get_name()})
+        if wfm_count > 0:
+            waveforms = self.repo.db[WaveformEntity.get_type()].find({"runid": self.get_name()})
+            print(runid, "===", waveforms)
+            fig, ax = plt.subplots()
+            for wfm in waveforms:
+                wfm_ent = WaveformEntity.from_dict(wfm)
+                ax.plot(wfm_ent.x_axis_in_milliseconds(), wfm_ent.y_axis())
+
+            return fig
+
+    def save_runid_aux2main(self, fig: plt.Figure, testname="aux2main") -> Path:
+        runid = self.get_name()
+        figname = "{runid}_{test}.png".format(runid=runid, test=testname)
+        save_path = Path(r"F:\Output DATABASE").joinpath(figname)
+        fig.savefig(save_path)
+        return save_path
+
+    def create_image_buffer(self, fig: plt.Figure, format: str = "png"):
+        img_buf = io.BytesIO()
+        fig.savefig(img_buf, format=format)
+        return img_buf
+
+    def clear_figure(self, fig: plt.Figure):
+        fig.clf()
+        plt.close(fig)
+        plt.clf()
+        plt.cla()
+
+    def insert_runid_image(self, path: Path, buffer: io.BytesIO, image_name: str):
+        pt = PathTranslator(path_name=image_name, path_str=str(path.resolve()))
+        im = ImageEntity(name=image_name, image_base64=buffer.getvalue(), image_str=pt.path_str)
+        col = self.repo.db['Images']
+        print(image_name)
+        im_dict = im.to_dict()
+        inserted_id = col.insert_one(im.to_dict()).inserted_id
+        return inserted_id
+
 
 class AddWaveformCaptureFromDirectory(AddFromDirectory):
     @classmethod
@@ -236,12 +349,32 @@ class AddWaveformCaptureFromDirectory(AddFromDirectory):
         environment = create_capture_environment_entity(self.dir.joinpath("temperature power settings.json"))
         runid = self.get_runid_from_parents(parents=self.get_parents(), current=AUX_TO_MAIN)
         test_category = self.dir.parent.name
+        capture_path = PathTranslator(path_str=str(self.dir.joinpath("capture.png").resolve()),
+                                      path_name="capture_image")
         aux2main = WaveformCaptureEntity(capture=capture, capture_settings=capture_settings, environment=environment,
-                                         runid=runid, test_category=test_category)
+                                         runid=runid, test_category=test_category, capture_image=capture_path)
         self.repo.insert_capture(aux2main)
 
         waveforms = AddAllWaveformsFromDirectory(dir=self.dir, repo=self.repo)
         waveforms.add()
+
+        return aux2main
+
+    def plot_capture(self, capture: WaveformCaptureEntity) -> plt.Figure:
+        """
+        Do I actually care about this? Just use the scope capture.
+        :param capture:
+        :return:
+        """
+        col = self.repo.db[WaveformEntity.get_type()]
+        found = col.find(capture.get_filter())
+        fig, ax = plt.subplots()
+        for f in found:
+            wfm = WaveformEntity.from_mongo(adict=f)
+            ax.plot(wfm.x_axis_in_milliseconds(), wfm.y_axis())
+
+        return fig
+
 
 class AddAllWaveformsFromDirectory(AddFromDirectory):
 
@@ -255,14 +388,53 @@ class AddAllWaveformsFromDirectory(AddFromDirectory):
         runid = self.get_runid_from_parents(parents=parents, current=CAPTURE)
 
         test_category = self.get_testcategory_from_parents(parents=parents, current=CAPTURE)
-        capture = int(self.dir.parent.name)
-        for i, testpoint_name in name_files:
-            bin_file = self.dir.joinpath(CHANNEL_BINARY_FMT.format(i))
-            pt = PathTranslator(path_str=str(bin_file.resolve()))
+        capture = int(self.dir.name)
+
+        # processes = []
+        for i, testpoint_name in enumerate(name_files):
+            index = i + 1
+            bin_file = self.dir.joinpath(CHANNEL_BINARY_FMT.format(index))
+
+            pt = PathTranslator(path_str=str(bin_file.resolve()), path_name=testpoint_name)
+            '''
+            p = Process(target=multiprocessing_waveform,
+                        args=(index, runid, capture, test_category, testpoint_name, pt))
+            processes.append(p)
+            p.start()
+            '''
+            exists_ = self.repo.check_waveform(runid=runid, testpoint=testpoint_name, scope_channel=index,
+                                               capture=capture,
+                                               test_category=test_category)
+            if not exists_:
+                wfm = multiprocessing_waveform(channel=index, name=testpoint_name, pt=pt, capture=capture,
+                                               runid=runid, test_category=test_category)
+                self.repo.insert_waveform(wfm)
+
+            '''
+            '''
+        for proc in processes:
+            proc.join()
 
 
-            WaveformEntity(testpoint=testpoint_name, runid=runid, capture=capture, test_category=test_category,
-                           units="UNITSNEEDTOBEFOUND", location=pt.path_str, scope_channel=i, )
+def multiprocessing_waveform(channel: int, runid: int, capture: int, test_category: str, name: str, pt: PathTranslator):
+    wfm_analysis = WaveformAnalysis()
+    wf_y = wfm_analysis.read_binary_waveform(pt.path, compressed=False)
+    wf_x = wfm_analysis.create_waveform_x_coords(x_increment=8.0000000000000001674e-08, length=wf_y.size)
+    downsample = wfm_analysis.min_max_downsample_2d(wf_x=wf_x, wf_y=wf_y, size=500)
+    wfm = WaveformEntity(testpoint=name, runid=runid, capture=capture, test_category=test_category,
+                         units="UNITSNEEDTOBEFOUND", location=pt.path_str, scope_channel=channel, downsample=downsample)
+
+    # TODO:: Have the waveform creation task do this itself!
+    target = wfm_analysis.find_cutoff_target_by_percentile(wf=wf_y)
+    ss_index = wfm.steady_state_index(expected_voltage=target * 0.9)
+    wfm.steady_state_mean = round(wf_y[ss_index].mean(), 2)
+    wfm.set_steady_state_index(index=0)
+    wfm.max = round(wf_y.max(), 2)
+    wfm.min = round(wf_y.min(), 2)
+    wfm.steady_state_max = round(wf_y[ss_index:].max(), 2)
+    wfm.steady_state_min = round(wf_y[ss_index:].min(), 2)
+    wfm.steady_state_pk2pk = wfm.steady_state_max - wfm.steady_state_min
+    return wfm
 
 
 class AddEthAgentCaptureFromDirectory(AddFromDirectory):
@@ -370,7 +542,18 @@ class read_directory():
             return AutomationTestEntity(name=self.dir.name)
 
 
+def create_aux2main_multiprocessing(dir_str: str, repo: Repo):
+    path = Path(dir_str)
+    print("starting", dir)
+    ad = AddWaveformCaptureFromDirectory(dir=path, repo=repo)
+    ad.add()
+
+
 if __name__ == "__main__":
+    # timing_desc = input("What timing is this?")
+    # print(timing_desc, "Starting")
+    timing_desc = "Just running"
+    start_time = time.time()
     load_dotenv()
 
     repo = Repo()
@@ -385,6 +568,8 @@ if __name__ == "__main__":
         parents = list(dir.parents)
         print(parents)
     '''
+    processes = []
+
     for d in p.rglob("*"):
         if d.is_dir():
             list = d.parents
@@ -411,9 +596,22 @@ if __name__ == "__main__":
                 # print("SERIAL :", x.return_entity())
             elif parent_len == RUNID:
                 ad = AddRunidFromDirectory(dir=d, repo=repo)
-                ad.add()
+                runid = ad.add()
                 # x = read_directory(dir=d, _name="RUNID")
                 # print("RUNID :", x.return_entity())
+                runid_img = "{runid}_aux2main".format(runid=ad.get_name())
+                print(runid_img)
+                count = repo.db['Images'].count_documents({"name": runid_img})
+                if count == 0:
+                    fig = ad.plot_runid_aux2main()
+                    if fig:
+                        save_path = ad.save_runid_aux2main(fig=fig, testname="aux2main")
+                        save_buffer = ad.create_image_buffer(fig=fig, format="png")
+                        ad.insert_runid_image(path=save_path, buffer=save_buffer,
+                                              image_name=runid_img)
+                        ad.clear_figure(fig)
+
+
             elif parent_len == TESTDIR:
                 pass
             elif parent_len == TEST:
@@ -427,13 +625,26 @@ if __name__ == "__main__":
                     ad = AddScriptCaptureFromDirectory(dir=d, repo=repo)
                     ad.add()
                 elif parent_name == "Aux To Main":
+                    ''' MULTIPROCESSING '''
+                    ''' Alway fails with threadlock error?
+                    p = Process(target=create_aux2main_multiprocessing, args=(str(d.resolve()), repo))
+                    processes.append(p)
+                    p.start()
+                    '''
                     ad = AddWaveformCaptureFromDirectory(dir=d, repo=repo)
-                    ad.add()
+                    entity = ad.add()
                 elif parent_name == "EthAgent":
                     ad = AddEthAgentCaptureFromDirectory(dir=d, repo=repo)
                     ad.add()
 
             else:
                 pass
+    for proc in processes:
+        proc.join()
+    end_time = time.time()
 
-        # print(d)
+    elapsed_time = end_time - start_time
+    print("ELAPSED: ", elapsed_time)
+    ''' Write Elapsed Time'''
+    with open(r"F:\timing_database.txt", "a") as f:
+        f.write("{} \t\t\t\telapsed: {:.0f} seconds\n".format(timing_desc, elapsed_time))

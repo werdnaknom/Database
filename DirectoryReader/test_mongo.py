@@ -112,6 +112,43 @@ def find_probes_from_runid(db, runid):
     pprint.pprint(list(result))
 
 
+def find_unqiue_sequence_runids(db, project):
+    pipeline = [
+        {"$match": {"project": project,
+                    "status.status": "Complete"}},
+        # {"$unwind": "$testrun.test_points"},
+        {"$group": {"_id": None, "uniqueValues": {"$addToSet": "$testrun.test_points"}}},
+        {"$project": {"uniqueValues": 1}},
+    ]
+    result = db["RUNID"].aggregate(pipeline)
+    result = list(result)
+    pprint.pprint(result)
+    print(len(result))
+
+
+def find_all_testpoints_by_project(db, project):
+    pipeline = [
+        {"$match": {"project": project,
+                    "status.status": "Complete"}},
+        # {"$unwind": "$testrun.test_points"},
+        {"$group": {"_id": None, "uniqueValues": {"$addToSet": "$testrun.test_points"}}},
+        #{"$group": {"_id": None, "uniqueValues": {"$mergeObjects": "$testrun.test_points"}}},
+        {"$project": {"_id": 0, "uniqueValues":1}}
+    ]
+    result = db["RUNID"].aggregate(pipeline)
+    result = list(result)
+    results = result[0]
+    print(results)
+    unique_sequences = results["uniqueValues"]
+    print(unique_sequences)
+    all_testpoints = set()
+    for dict in unique_sequences:
+        for v in dict.values():
+            all_testpoints.add(v)
+    print(all_testpoints)
+    print(len(all_testpoints))
+
+
 if __name__ == "__main__":
     load_dotenv()
     mongo_uri = os.environ.get("MONGO_URI")
@@ -130,5 +167,7 @@ if __name__ == "__main__":
     lookup_complete_runids_from_project(db)
     group_runids_by_project(db)
     count_captures_by_runid(db)
-    '''
     find_probes_from_runid(db, runid=1014)
+    find_unqiue_sequence_runids(db, project="Island Rapids")
+    '''
+    find_all_testpoints_by_project(db, project="Island Rapids")

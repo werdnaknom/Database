@@ -33,7 +33,7 @@ def create_capture_environment_entity(environment_file_path: Path) -> CaptureEnv
         setpoint = jdict['Chamber Setpoint']
         dut_on = jdict["DUT On"]
         channels = jdict['Power Supply Channels']
-        psu_channels = []
+        psu_channels = {}
         for i, ch in enumerate(channels):
             channel_name = ch["Channel Name"]
             channel_on = ch["Channel On"]
@@ -46,7 +46,7 @@ def create_capture_environment_entity(environment_file_path: Path) -> CaptureEnv
                                      voltage_setpoint=channel_setpoint, slew_rate=channel_slew,
                                      on_delay=channel_on_delay,
                                      off_delay=channel_off_delay)
-            psu_channels.append(psc)
+            psu_channels[str(psc.channel)] = psc
         efe = CaptureEnvironmentFileEntity(chamber_setpoint=setpoint, dut_on=dut_on, power_supply_channels=psu_channels)
 
         return efe

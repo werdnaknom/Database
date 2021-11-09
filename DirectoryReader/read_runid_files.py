@@ -13,7 +13,7 @@ def create_runid_comment_entity(comment_file_path: Path) -> CommentsFileEntity:
     with open(comment_file_path) as file:
         read = file.read()
 
-    cfe = CommentsFileEntity(comments={"Test Setup Comment": read})
+    cfe = CommentsFileEntity(comments=read)
     return cfe
 
 
@@ -42,15 +42,19 @@ def create_runid_power_entity(csv_path: Path, json_path: Path) -> RunidPowerCSVF
             elif datatype == "string":
                 csv_df[col_header] = pd.Categorical(csv_df[col_header])
 
+        max_power = round(csv_df["Total Power"].max(), 2)
+
         if "DUT Power State" in csv_df.columns:
-            power_states = csv_df.groupby("DUT Power State")["Total Power"].agg(['max', "mean"]).round(3).to_dict('index')
+            power_states = csv_df.groupby("DUT Power State")["Total Power"].agg(['max', "mean"]).round(3).to_dict(
+                'index')
         else:
             power_states = {"Power": csv_df["Total Power"].agg(['max', 'mean']).round(3).to_dict()}
     except KeyError as e:
         print(csv_path, " failed due to: ", e)
         power_states = {}
+        max_power = 0
 
-    rpcfe = RunidPowerCSVFileEntity(dataframe=power_states)
+    rpcfe = RunidPowerCSVFileEntity(dataframe=power_states, max_power=max_power)
     return rpcfe
 
 
