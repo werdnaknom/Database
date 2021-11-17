@@ -20,6 +20,9 @@ from read_capture_files import create_capture_settings_entity, create_capture_en
 from Entities.Entities import *
 from Entities.Helpers.path_translator import PathTranslator
 from Entities.WaveformFunctions.waveform_analysis import WaveformAnalysis
+from DirectoryReader.repo import Repo
+
+from DirectoryPlotting.RunidPlotter import plot_runid_aux2main
 
 START_LENGTH = 1
 PROJECT = START_LENGTH + 1
@@ -39,101 +42,6 @@ SYSTEM_SCRIPT = START_LENGTH + 9
 class Lumberjack(logging.getLoggerClass()):
     # TODO: LOGGING
     pass
-
-
-class Repo():
-    def __init__(self):
-        mongo_uri = os.environ.get("MONGO_URI")
-        print(mongo_uri)
-        self.client = pymongo.MongoClient(mongo_uri)
-        self.db = self.client['ATS2']
-        print(self.db)
-
-    def _insert_entity(self, entity):
-        # TODO:: Update to find the actual _id instead of just count found.
-        # TODO:: Then return the found _ID
-        col = self.db[entity.get_type()]
-        found = col.count_documents({"_id": entity.get_id()})
-        # found = list(col.find({"_id": entity.get_id()}, {"_id":1}))
-        # if found:
-        #   return found
-        if not found:
-            # print("NOT FOUND, INSERTING", entity.to_dict())
-            r = col.insert_one(document=entity.to_dict())
-            print("INSERTED {} at {}".format(entity.descriptor, r.inserted_id))
-            # return r.inserted_ids
-
-    def insert_project(self, project: ProjectEntity):
-        return self._insert_entity(entity=project)
-
-    def insert_pba(self, pba: PBAEntity):
-        return self._insert_entity(entity=pba)
-
-    def insert_rework(self, rework: ReworkEntity):
-        return self._insert_entity(entity=rework)
-
-    def insert_serialnumber(self, serial: SubmissionEntity):
-        return self._insert_entity(entity=serial)
-
-    def insert_runid(self, runid: RunidEntity):
-        return self._insert_entity(entity=runid)
-
-    def insert_automationtest(self, test: AutomationTestEntity):
-        return self._insert_entity(entity=test)
-
-    def insert_capture(self, capture):
-        return self._insert_entity(entity=capture)
-
-    def insert_waveform(self, waveform):
-        ds_x = waveform.downsample[0].tolist()
-        ds_y = waveform.downsample[1].tolist()
-        waveform.downsample = [ds_x, ds_y]
-        return self._insert_entity(entity=waveform)
-
-    def _insert_image_from_path(self, path: str):
-        im = Image.open(path)
-        image_bytes = io.BytesIO()
-        im.save(image_bytes, format('PNG'))
-
-        image_entity = {
-            'data': image_bytes.getvalue()
-        }
-        image_id = self._insert_entity(image_entity)
-        return image_id
-
-    def _read_image_from_db(self, id):
-        image = self.db['images'].find_one({})
-        pil_img = Image.open(io.BytesIO(image['data']))
-        plt.imshow(pil_img)
-        plt.show()
-
-    def insert_waveform_image(self, wfm_image):
-
-        pass
-
-    def insert_runid_image(self, runid_image):
-        pass
-
-    def insert_rework_image(self, rwk_image):
-        pass
-
-    def insert_serial_image(self, serial_image):
-        pass
-
-    def insert_pba_image(self, pba_image):
-        pass
-
-    def insert_project_image(self, project_image):
-        pass
-
-    def check_waveform(self, runid, capture, testpoint, scope_channel, test_category):
-        id = WaveformEntity.format_id(testpoint=testpoint, runid=runid, capture=capture, scope_channel=scope_channel,
-                                      test_category=test_category)
-        result = self.db[WaveformEntity.get_type()].count_documents({"_id": id})
-        if result > 0:
-            return True
-        else:
-            return False
 
 
 class AddFromDirectory():
@@ -639,6 +547,7 @@ if __name__ == "__main__":
 
             else:
                 pass
+
     for proc in processes:
         proc.join()
     end_time = time.time()
