@@ -5,6 +5,19 @@ import os
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 
+class DirectoryConfiguration():
+    ATS2_OR = r'//npo/coos/LNO_Validation/Validation_Data/_data/ATS 2.0'
+    ATS2_KM = r'//npo/coos/LNO_Validation/Kulim/ATS 2.0 Data'
+    DIR_FMT_PROJECT = "{project}"
+    DIR_FMT_PBA = "{project}/{pba}"
+    DIR_FMT_REWORK = "{project}/{pba}/{rework}"
+    DIR_FMT_SERIAL = "{project}/{pba}/{rework}/{serial_number}"
+    DIR_FMT_RUNID = "{project}/{pba}/{rework}/{serial_number}/{runid}"
+    DIR_FMT_TEST = "{project}/{pba}/{rework}/{serial_number}/{runid}/Tests/{test}"
+    DIR_FMT_CAPTURE = "{project}/{pba}/{rework}/{serial_number}/{runid}/Tests/{test}/{capture}"
+    DIR_FMT_SCRIPTS_HOST = "{project}/{pba}/{rework}/{serial_number}/{runid}/Tests/{test}/{host}"
+
+
 class Config(object):
     TESTING = False
     DEBUG = False

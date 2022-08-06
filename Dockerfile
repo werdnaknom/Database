@@ -1,4 +1,4 @@
-FROM python:3.8
+FROM python:3.10
 
 ENV HTTP_PROXY "http://proxy.jf.intel.com:912"
 ENV HTTPS_PROXY "http://proxy.jf.intel.com:912"
