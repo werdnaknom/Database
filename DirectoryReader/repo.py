@@ -44,6 +44,7 @@ class Repo():
     def insert_project(self, project: ProjectEntity):
         return self._insert_entity(entity=project)
 
+
     def insert_pba(self, pba: PBAEntity):
         return self._insert_entity(entity=pba)
 

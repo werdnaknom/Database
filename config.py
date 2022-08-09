@@ -6,8 +6,9 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 
 class DirectoryConfiguration():
-    ATS2_OR = r'//npo/coos/LNO_Validation/Validation_Data/_data/ATS 2.0'
-    ATS2_KM = r'//npo/coos/LNO_Validation/Kulim/ATS 2.0 Data'
+    ATS2_OR = r"Z:\ATS 2.0"
+    #ATS2_OR = r'//npo/coos/LNO_Validation/Validation_Data/_data/ATS 2.0'
+    #ATS2_KM = r'//npo/coos/LNO_Validation/Kulim/ATS 2.0 Data'
     DIR_FMT_PROJECT = "{project}"
     DIR_FMT_PBA = "{project}/{pba}"
     DIR_FMT_REWORK = "{project}/{pba}/{rework}"
@@ -21,6 +22,8 @@ class DirectoryConfiguration():
 class Config(object):
     TESTING = False
     DEBUG = False
+
+    WEBSITE_URL = "http://localhost:5000"
 
     DATADIRECTORY = r'//npo/coos/LNO_Validation/Validation_Data/_data/ATS 2.0'
     KULIMDATADIRECTORY = r'//npo/coos/LNO_Validation/Kulim/ATS 2.0 Data'
