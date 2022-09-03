@@ -14,6 +14,7 @@ RUN pip install --no-cache-dir gunicorn
 
 COPY app app
 COPY Entities Entities
+COPY database_functions database_functions
 COPY flaskweb.py boot.sh config.py ./
 RUN chmod +x boot.sh
 
