@@ -1,11 +1,14 @@
 from app.api_upload import bp
-from Entities.entities import Entities
+
+
+# from Entities.Entities.entities import Entities
 
 
 @bp.route("/add_project")
 def add_project():
-    e = Entities()
-    return e.__repr__()
+    pass
+    # e = Entities()
+    # return e.__repr__()
 
 
 @bp.route("/add_pba")
