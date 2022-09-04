@@ -6,9 +6,11 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 
 class DirectoryConfiguration():
-    ATS2_OR = r"Z:\ATS 2.0"
+    #ATS2_OR = r"Z:\ATS 2.0"
     #ATS2_OR = r'//npo/coos/LNO_Validation/Validation_Data/_data/ATS 2.0'
     #ATS2_KM = r'//npo/coos/LNO_Validation/Kulim/ATS 2.0 Data'
+    ATS2_OR = os.getenv("OR_ATS_DIRECTORY") or r"Z:\ATS 2.0"
+    ATS2_KM = os.getenv("KM_ATS_DIRECTORY") or r"Z:\ATS 2.0"
     DIR_FMT_PROJECT = "{project}"
     DIR_FMT_PBA = "{project}/{pba}"
     DIR_FMT_REWORK = "{project}/{pba}/{rework}"
@@ -23,11 +25,11 @@ class Config(object):
     TESTING = False
     DEBUG = False
 
-    WEBSITE_URL = "http://localhost:5000"
+    WEBSITE_URL = os.getenv("WEBSITE_URL") or "http://localhost:5000"
 
-    DATADIRECTORY = r'//npo/coos/LNO_Validation/Validation_Data/_data/ATS 2.0'
-    KULIMDATADIRECTORY = r'//npo/coos/LNO_Validation/Kulim/ATS 2.0 Data'
-    PICKLEDIRECTORY = r'//npo/coos/LNO_Validation/Validation_Data/_data/ATS 2.0_pickle'
+    DATADIRECTORY = os.getenv("OR_ATS_DIRECTORY") or r'//npo/coos/LNO_Validation/Validation_Data/_data/ATS 2.0'
+    KULIMDATADIRECTORY = os.getenv("KM_ATS_DIRECTORY") or r'//npo/coos/LNO_Validation/Kulim/ATS 2.0 Data'
+    PICKLEDIRECTORY = os.getenv("PICKLEDIRECTORY") or r'//npo/coos/LNO_Validation/Validation_Data/_data/ATS 2.0_pickle'
 
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'you-will-never-guess'
 
